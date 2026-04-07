@@ -1,21 +1,16 @@
-import importlib.util
 from pathlib import Path
+import sys
 
 import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-HELPER_FILE = PROJECT_ROOT / "helper_bist-price-steps.py"
 
-spec = importlib.util.spec_from_file_location("bist_helper_module", HELPER_FILE)
-if spec is None or spec.loader is None:
-    raise ImportError(f"Helper module yüklenemedi: {HELPER_FILE}")
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-bist_helper_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(bist_helper_module)
-
-BistPayPriceStep = bist_helper_module.BistPayPriceStep
-bist_calc_fiyat_adim = bist_helper_module.bist_calc_fiyat_adim
+from helper_bist_price_steps import BistPayPriceStep
+from helper_bist_price_steps import example_normalize_price_steps
 
 
 class TestGetPriceStep:
@@ -35,15 +30,15 @@ class TestGetPriceStep:
             ("999.999", 0.50, "0.500", "500.000 - 999.999"),
             ("1000", 1.00, "1.000", "1,000.000 - 2,499.999"),
             ("2499.999", 1.00, "1.000", "1,000.000 - 2,499.999"),
-            ("2500", 2.50, "2.500", "2,500.000 ve üzeri"),
-            ("2502.5", 2.50, "2.500", "2,500.000 ve üzeri"),
+            ("2500", 2.50, "2.500", "2,500.000 and above"),
+            ("2502.5", 2.50, "2.500", "2,500.000 and above"),
         ],
     )
     def test_returns_correct_band_info(self, price, expected_step, expected_step_str, expected_band):
         result = BistPayPriceStep.get_price_step(price)
 
         assert result["step"] == expected_step
-        assert result["stepStr"] == expected_step_str
+        assert result["step_str"] == expected_step_str
         assert result["band"] == expected_band
 
 
@@ -74,7 +69,7 @@ class TestIsValidPriceStep:
     def test_validity_detection(self, price, expected_is_valid, expected_step):
         result = BistPayPriceStep.is_valid_price_step(price)
 
-        assert result["isValid"] is expected_is_valid
+        assert result["is_valid"] is expected_is_valid
         assert result["step"] == expected_step
 
 
@@ -107,8 +102,8 @@ class TestRoundPriceToStep:
         assert result["mode"] == mode
 
     def test_invalid_mode_raises(self):
-        with pytest.raises(ValueError, match="Geçersiz mode"):
-            BistPayPriceStep.round_price_to_step("250.26", "wrong-mode")
+        with pytest.raises(ValueError, match="Invalid mode"):
+            BistPayPriceStep.round_price_to_step("250.26", "not-defined-mode")
 
 
 class TestNormalizeInput:
@@ -160,5 +155,5 @@ class TestHelperFunction:
             ("1.234,56", "1235.00"),
         ],
     )
-    def test_bist_calc_fiyat_adim(self, raw_price, expected):
-        assert bist_calc_fiyat_adim(raw_price) == expected
+    def test_example_normalize_price_steps(self, raw_price, expected):
+        assert example_normalize_price_steps(raw_price) == expected
